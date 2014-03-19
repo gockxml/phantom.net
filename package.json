@@ -1,0 +1,36 @@
+{
+  "name": "phantom.net",
+  "version": "0.5.1",
+  "description": "run phantomjs as a network service.",
+  "main": "app.js",
+  "dependencies": {},
+  "devDependencies": {},
+  "scripts": {},
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sinclairzx81/phantom.net"
+  },
+  "keywords": [
+    "phantomjs",
+    "render",
+    "client",
+    "server"
+  ],
+  "author": {
+    "name": "sinclair"
+  },
+  "licenses": [
+    {
+      "type": "The MIT License (MIT)",
+      "url": "https://raw.github.com/sinclairzx81/phantom.net/master/license.txt"
+    }
+  ],
+  "readmeFilename": "readme.md",
+  "readme": "﻿## phantom.net\r\n\r\nFor nodejs developers wanting to run [phantomjs](http://phantomjs.org/) as a network service. Includes both server and client library.\r\n\r\n#### server\r\n\r\nstart a phantom.net service on port 5000.\r\n\r\n```javascript\r\n\r\nvar phantom = require('phantom.net')\r\n\r\nvar server = new phantom.Server(5000)\r\n```\r\n\r\n#### client\r\n\r\nconnect to service and render web page as pdf. \r\n\r\n```javascript\r\nvar phantom = require('phantom.net')\r\n\r\nvar client = new phantom.Client('http://localhost:5000')\r\n\r\nvar parameter = {url: 'http://google.com', mime: 'application/pdf'}\r\n\r\nclient.render(parameter, function(readstream) {\r\n\t\r\n\t// do something with the stream.\r\n})\r\n```\r\n\r\n### install\r\n\r\n\tnpm install phantom.net\r\n\r\nnote: phantomjs needs to be installed on the server machine, and set up as a PATH environment variable.\r\n\r\n### contents\r\n\r\n* [overview](#overview)\r\n* [render](#render)\r\n* [waiting](#waiting)\r\n* [example](#example)\r\n* [windows performance](#windows_performance)\r\n\r\n<a name=\"overview\" />\r\n### overview\r\n\r\nphantom.net was written specifically for developers looking to expose phantomjs as a network service. The library allows developers to\r\nquickly host phantomjs as a http accessible endpoint, and pass it urls and content to render. phantom.net will respond with readable streams. \r\nUseful for writing results to disk, or back out as http response.\r\n\r\n<a name=\"render\" />\r\n### render\r\n\r\n```javascript\r\nvar phantom = require('phantom.net')\r\n\r\nvar client = new phantom.Client('http://localhost:5000')\r\n\r\nvar parameter = {url: 'http://google.com', mime: 'application/pdf'}\r\n\r\nclient.render(parameter, function(readstream) {\r\n\t\r\n\tvar writestream = require('fs').createWriteStream('output.pdf')\t\r\n\r\n\treadstream.pipe(writestream)\r\n})\r\n```\r\n\r\nThe client render() method accepts a single parameter which is passed to phantomjs for rendering. Below is the parameter definition. When passing\r\nthis parameter, either url or content must be set. The mime is required, and can be either 'application/pdf', image/jpg', 'image/png' or 'image/gif'\r\n\r\nnote: for more details on the following properties, see [here](https://github.com/ariya/phantomjs/wiki/API-Reference-WebPage#properties-list).\r\n\r\n```typescript\r\ninterface Parameter {\r\n    \r\n    content?   : string\r\n\t\r\n    url?       : string \r\n        \r\n    mime       : string \r\n\r\n\twait?      : number\r\n\t\r\n    viewportSize? : { \r\n        \r\n        width   : number \r\n    \r\n        height  : number \r\n    }\r\n    \r\n    paperSize? : {\r\n        \r\n        width?      : number\r\n\r\n        height?     : number\r\n\r\n        border?     : string\r\n\r\n        format?     : string\r\n\r\n        orientation?: string\r\n    }\r\n    \r\n    zoomFactor?  : number\r\n\r\n    clipRect? : { \r\n\r\n        top   : number\r\n\r\n        left  : number \r\n\r\n        width : number\r\n\r\n        height: number \r\n    }\r\n}\r\n```\r\n<a name=\"waiting\" />\r\n### waiting\r\n\r\nBy default, phantom.net will wait 200ms for a page to render. A client can modify this value to increase the allowed for the page\r\nto load. The following will wait 2 seconds.\r\n\r\n```javascript\r\nvar phantom = require('phantom.net')\r\n\r\nvar client = new phantom.Client('http://localhost:5000')\r\n\r\nclient.render({url: 'http://google.com', mime: 'application/pdf', wait: 2000}, function(readstream) {\r\n\t\r\n})\r\n```\r\n\r\nBy default, the phantom.net server will put limits on waiting (the default is 4 seconds), however you can override the maximum \r\nwait as follows...\r\n\r\n```javascript\r\n\r\nvar phantom = require('phantom.net')\r\n\r\nvar server = new phantom.Server(5000, {maximum_wait: 10000})\r\n\r\n```\r\n\r\n<a name=\"example\" />\r\n### example\r\nThe following example demonstrates setting up both a phantom.net server (on port 5001) and phantom.net client within the same process. \r\nWe also create a basic nodejs http server (on port 5000) to output the stream returned from phantom.net. \r\n\r\n```javascript\r\n\r\nvar phantom = require('phantom.net')\r\n\r\nvar server  = new phantom.Server(5001)\r\n\r\nvar client  = new phantom.Client(\"http://localhost:5001\")\r\n\r\nrequire('http').createServer(function(req, res) {\r\n\t\r\n\tvar parameter = {url: 'http://google.com', \r\n\t\t\t\t\t mime: 'application/pdf', \r\n\t\t\t\t\t viewportSize: { width: 1600, height: 1200 } }\r\n\t\r\n\tclient.render(parameter, function(errors, stream) {\r\n\t\t\r\n\t\tres.writeHead(200, {'Content-Type' : parameter.mime})\r\n\t\t\r\n\t\tstream.pipe(res)\r\n\t})\r\n\r\n}).listen(5000)\r\n\r\nconsole.log('server listening on port 5000')\r\n\r\n```\r\n<a name=\"windows_performance\" />\r\n### windows performance\r\n\r\nIf running the server on a windows machine, rendering may take a considerable amount of time. If this is a issue, \r\nyou can speed things up unchecking 'automatically detect settings' in internet explorers LAN settings, as follows...\r\n\r\n* open up internet explorer.\r\n* options > internet options > connections (tab).\r\n* uncheck 'automatically detect settings'.\r\n* click ok.",
+  "_id": "phantom.net@0.5.1",
+  "dist": {
+    "shasum": "105dccddbb51c2b0fe84c6b95e9f3dda2c9a40a4"
+  },
+  "_from": "phantom.net@",
+  "_resolved": "https://registry.npmjs.org/phantom.net/-/phantom.net-0.5.1.tgz"
+}
