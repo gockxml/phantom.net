@@ -197,30 +197,34 @@ if (parameter.zoomFactor) {
 if (parameter.clipRect) {
     page.clipRect = parameter.clipRect;
 }
-
-var resources = [];
-
-page.onResourceRequested = function (request) {
-    resources[request.id] = request.stage;
-};
-
-page.onResourceReceived = function (response) {
-    resources[response.id] = response.stage;
-};
-/*
-page.onInitialized = function () {
-    window.setTimeout(function () {
-        page.render(parameter.handle);
-
-        phantom.exit(1);
-    }, parameter.wait);
-};
-*/
-
 if (parameter.content) {
     page.content = parameter.content;
 }
+var resourceWait  = 1000, maxRenderWait = 10000, renderTimeout, forcedRenderTimeout;
+var count = 0;
+page.onResourceRequested = function (req) {
 
+    count += 1;
+    console.log('> ' + req.id + ' - ' + req.url);
+    clearTimeout(renderTimeout);
+};
+
+page.onResourceReceived = function (res) {
+    if (!res.stage || res.stage === 'end') {
+        count -= 1;
+        console.log(res.id + ' ' + res.status + ' - ' + res.url);
+        if (count === 0) {
+            clearTimeout(forcedRenderTimeout);
+            renderTimeout = setTimeout(do_render, resourceWait);
+        }
+    }
+};
+
+
+var do_render = function(){
+    page.render(parameter.handle);
+    phantom.exit();
+}
 if (parameter.url) {
     page.open(parameter.url, function (status) {
         if (status !== 'success') {
@@ -230,10 +234,9 @@ if (parameter.url) {
 
             return;
         } else {
-            window.setTimeout(function () {
-                page.render(parameter.handle);
-                phantom.exit();
-            }, parameter.wait); 
+            forcedRenderTimeout = window.setTimeout(function () {
+                do_render()
+            }, maxRenderWait); 
         }
     });
 }
