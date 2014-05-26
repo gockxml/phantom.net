@@ -1,6 +1,6 @@
 {
   "name": "phantom.net",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "run phantomjs as a network service.",
   "main": "app.js",
   "dependencies": {},
